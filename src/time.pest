@@ -1,0 +1,27 @@
+weekday = { "monday"
+    | "tuesday"
+    | "wednesday"
+    | "thursday"
+    | "friday"
+    | "saturday"
+    | "sunday"
+}
+now = { "now" }
+modifier = { "last" | "next" }
+quantifier = { "min" | "hours" | "days" | "weeks" }
+shortcut_day = { "today" | "yesterday" }
+mday = ${ (modifier)? ~ WHITE_SPACE* ~ weekday | shortcut_day }
+
+relative = ${ int ~ WHITE_SPACE* ~ quantifier ~ WHITE_SPACE* ~ "ago"}
+time = ${ hms ~ (":" ~ hms)? ~ (":" ~ hms)? }
+day_at = ${ mday ~ WHITE_SPACE* ~ ("at" ~ WHITE_SPACE* ~ time)?}
+iso = ${ year ~ "-" ~ month ~ "-" ~ day ~ "T" ~ time }
+
+time_clue = {SOI ~ (now | iso | relative | time | day_at) ~ EOI }
+
+hms = { ASCII_DIGIT{1,2} }
+year = { ASCII_DIGIT{4} }
+month = { ASCII_DIGIT{2} }
+day = { ASCII_DIGIT{2} }
+int = { ASCII_DIGIT+ }
+WHITESPACE = _{ " " }
