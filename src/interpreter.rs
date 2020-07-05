@@ -1,11 +1,16 @@
-use crate::parser::{Modifier, Quantifier, ShortcutDay, TimeClue, HMS};
+use crate::parser::{Modifier, Quantifier, ShortcutDay, TimeClue, AMPM, HMS};
 use chrono::{DateTime, Datelike, Duration, LocalResult, TimeZone, Utc};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum EvaluationError {
     #[error("invalid time: {hour}:{minute}:{second}")]
-    InvalidTime { hour: u32, minute: u32, second: u32 },
+    InvalidTime {
+        hour: u32,
+        minute: u32,
+        second: u32,
+        am_or_pm_maybe: Option<AMPM>,
+    },
     #[error("invalid ISO date: {year}-{month}-{day}T{hour}:{minute}:{second}")]
     ChronoISOError {
         year: i32,
@@ -17,15 +22,20 @@ pub enum EvaluationError {
     },
 }
 
-fn check_hms(hms: HMS) -> Result<HMS, EvaluationError> {
+fn check_hms(hms: HMS, am_or_pm_maybe: Option<AMPM>) -> Result<HMS, EvaluationError> {
     let (h, m, s) = hms;
+    let h = match am_or_pm_maybe {
+        None | Some(AMPM::AM) => h,
+        Some(AMPM::PM) => h + 12,
+    };
     if h < 24 && m < 60 && s < 60 {
-        Ok(hms)
+        Ok((h, m, s))
     } else {
         Err(EvaluationError::InvalidTime {
             hour: h,
             minute: m,
             second: s,
+            am_or_pm_maybe,
         })
     }
 }
@@ -36,17 +46,20 @@ pub fn evaluate<Tz: chrono::TimeZone>(
 ) -> Result<DateTime<Tz>, EvaluationError> {
     match time_clue {
         TimeClue::Now => Ok(now),
-        TimeClue::Time((h, m, s)) => {
-            let (h, m, s) = check_hms((h, m, s))?;
+        TimeClue::Time((h, m, s), am_or_pm_maybe) => {
+            let (h, m, s) = check_hms((h, m, s), am_or_pm_maybe)?;
             Ok(now.date().and_hms(h, m, s))
         }
         TimeClue::Relative(n, quantifier) => match quantifier {
             Quantifier::Min => Ok(now - Duration::minutes(n as i64)),
+            Quantifier::Hours => Ok(now - Duration::hours(n as i64)),
             Quantifier::Days => Ok(now - Duration::days(n as i64)),
+            Quantifier::Weeks => Ok(now - Duration::weeks(n as i64)),
+            Quantifier::Months => Ok(now - Duration::days(30 * n as i64)), // assume 1 month = 30 days
         },
-        TimeClue::RelativeDayAt(modifier, weekday, hms_maybe) => {
+        TimeClue::RelativeDayAt(modifier, weekday, hms_maybe, am_or_pm_maybe) => {
             let (h, m, s) = hms_maybe.unwrap_or((0, 0, 0));
-            let (h, m, s) = check_hms((h, m, s))?;
+            let (h, m, s) = check_hms((h, m, s), am_or_pm_maybe)?;
             let monday = now.date() - Duration::days(now.weekday().num_days_from_monday() as i64);
             match modifier {
                 Modifier::Last => {
@@ -69,15 +82,15 @@ pub fn evaluate<Tz: chrono::TimeZone>(
                 }
             }
         }
-        TimeClue::SameWeekDayAt(weekday, hms_maybe) => {
+        TimeClue::SameWeekDayAt(weekday, hms_maybe, am_or_pm_maybe) => {
             let (h, m, s) = hms_maybe.unwrap_or((0, 0, 0));
-            let (h, m, s) = check_hms((h, m, s))?;
+            let (h, m, s) = check_hms((h, m, s), am_or_pm_maybe)?;
             let monday = now.date() - Duration::days(now.weekday().num_days_from_monday() as i64);
             Ok((monday + Duration::days(weekday.num_days_from_monday() as i64)).and_hms(h, m, s))
         }
-        TimeClue::ShortcutDayAt(rday, hms_maybe) => {
+        TimeClue::ShortcutDayAt(rday, hms_maybe, am_or_pm_maybe) => {
             let (h, m, s) = hms_maybe.unwrap_or((0, 0, 0));
-            let (h, m, s) = check_hms((h, m, s))?;
+            let (h, m, s) = check_hms((h, m, s), am_or_pm_maybe)?;
             match rday {
                 ShortcutDay::Today => Ok(now.date().and_hms(h, m, s)),
                 ShortcutDay::Yesterday => Ok((now.date() - Duration::days(1)).and_hms(h, m, s)),
