@@ -34,10 +34,10 @@ see [time_clue grammar rule](src/time.pest).
 
 some examples:
 
-* `4 min ago`
-* `last friday at 19`, `monday at 6`
-* `7`, `7:30`, `19:43:00`
-* `now`, `yesterday`, `today`
+* `4 min ago`, `4 h ago`, `1 week ago`
+* `last friday at 19`, `monday at 6 am`
+* `7`, `7am`, `7pm`, `7:30`, `19:43:00`
+* `now`, `yesterday`, `today`, `friday`
 * `2020-12-25T19:43:00`
 
 It also supports _interestingly-spaced_ inputs such as:
