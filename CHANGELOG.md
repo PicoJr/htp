@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+* Add am,pm
+* Add weekdays and quantifiers short aliases
+
+## [0.1.0](https://crates.io/crates/htp/0.1.0) Jul 05, 2020
+
 * Add `parse`
 * Add `examples`
 * Add `README`, `LICENSE`, `CHANGELOG`
