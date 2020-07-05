@@ -2,14 +2,20 @@ use crate::parser::{Modifier, Quantifier, ShortcutDay, TimeClue, AMPM, HMS};
 use chrono::{DateTime, Datelike, Duration, LocalResult, TimeZone, Utc};
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum EvaluationError {
+    #[error("invalid time: {hour}:{minute}:{second} {am_or_pm}")]
+    InvalidTimeAMPM {
+        hour: u32,
+        minute: u32,
+        second: u32,
+        am_or_pm: AMPM,
+    },
     #[error("invalid time: {hour}:{minute}:{second}")]
     InvalidTime {
         hour: u32,
         minute: u32,
         second: u32,
-        am_or_pm_maybe: Option<AMPM>,
     },
     #[error("invalid ISO date: {year}-{month}-{day}T{hour}:{minute}:{second}")]
     ChronoISOError {
@@ -24,19 +30,22 @@ pub enum EvaluationError {
 
 fn check_hms(hms: HMS, am_or_pm_maybe: Option<AMPM>) -> Result<HMS, EvaluationError> {
     let (h, m, s) = hms;
-    let h = match am_or_pm_maybe {
+    let h_am_pm = match am_or_pm_maybe {
         None | Some(AMPM::AM) => h,
         Some(AMPM::PM) => h + 12,
     };
-    if h < 24 && m < 60 && s < 60 {
-        Ok((h, m, s))
+    if h_am_pm < 24 && m < 60 && s < 60 {
+        Ok((h_am_pm, m, s))
     } else {
-        Err(EvaluationError::InvalidTime {
-            hour: h,
-            minute: m,
-            second: s,
-            am_or_pm_maybe,
-        })
+        match am_or_pm_maybe {
+            Some(am_or_pm) => Err(EvaluationError::InvalidTimeAMPM {
+                hour: h,
+                minute: m,
+                second: s,
+                am_or_pm,
+            }),
+            None => Err(EvaluationError::InvalidTime { hour: h, minute: m, second: s})
+        }
     }
 }
 
@@ -110,5 +119,22 @@ pub fn evaluate<Tz: chrono::TimeZone>(
                 }),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::interpreter::check_hms;
+    use crate::parser::AMPM::{AM,PM};
+
+    #[test]
+    fn test_check_hms() {
+        assert_eq!(check_hms((19, 43, 42), None), Ok((19,43,42)));
+        assert_eq!(check_hms((19, 43, 42), Some(AM)), Ok((19,43,42)));
+        assert!(check_hms((19, 43, 42), Some(PM)).is_err());
+        assert!(check_hms((24, 43, 42), None).is_err());
+        assert!(check_hms((19, 63, 42), None).is_err());
+        assert!(check_hms((19, 43, 62), None).is_err());
+        assert_eq!(check_hms((6,42,43), Some(PM)), Ok((18,42,43)));
     }
 }
