@@ -12,11 +12,7 @@ pub enum EvaluationError {
         am_or_pm: AMPM,
     },
     #[error("invalid time: {hour}:{minute}:{second}")]
-    InvalidTime {
-        hour: u32,
-        minute: u32,
-        second: u32,
-    },
+    InvalidTime { hour: u32, minute: u32, second: u32 },
     #[error("invalid ISO date: {year}-{month}-{day}T{hour}:{minute}:{second}")]
     ChronoISOError {
         year: i32,
@@ -44,7 +40,11 @@ fn check_hms(hms: HMS, am_or_pm_maybe: Option<AMPM>) -> Result<HMS, EvaluationEr
                 second: s,
                 am_or_pm,
             }),
-            None => Err(EvaluationError::InvalidTime { hour: h, minute: m, second: s})
+            None => Err(EvaluationError::InvalidTime {
+                hour: h,
+                minute: m,
+                second: s,
+            }),
         }
     }
 }
@@ -83,7 +83,7 @@ pub fn evaluate<Tz: chrono::TimeZone>(
                 Modifier::Next => {
                     let same_week_day =
                         monday + (Duration::days(weekday.num_days_from_monday() as i64));
-                    if weekday.num_days_from_monday() < now.weekday().num_days_from_monday() {
+                    if weekday.num_days_from_monday() > now.weekday().num_days_from_monday() {
                         Ok(same_week_day.and_hms(h, m, s)) // same week
                     } else {
                         Ok(same_week_day.and_hms(h, m, s) + Duration::days(7)) // next week
@@ -124,17 +124,28 @@ pub fn evaluate<Tz: chrono::TimeZone>(
 
 #[cfg(test)]
 mod test {
-    use crate::interpreter::check_hms;
-    use crate::parser::AMPM::{AM,PM};
+    use crate::interpreter::{check_hms,evaluate};
+    use crate::parser::AMPM::{AM, PM};
+    use crate::parser::{TimeClue, Modifier};
+    use chrono::Weekday;
+    use chrono::Utc;
+    use chrono::offset::TimeZone;
 
     #[test]
     fn test_check_hms() {
-        assert_eq!(check_hms((19, 43, 42), None), Ok((19,43,42)));
-        assert_eq!(check_hms((19, 43, 42), Some(AM)), Ok((19,43,42)));
+        assert_eq!(check_hms((19, 43, 42), None), Ok((19, 43, 42)));
+        assert_eq!(check_hms((19, 43, 42), Some(AM)), Ok((19, 43, 42)));
         assert!(check_hms((19, 43, 42), Some(PM)).is_err());
         assert!(check_hms((24, 43, 42), None).is_err());
         assert!(check_hms((19, 63, 42), None).is_err());
         assert!(check_hms((19, 43, 62), None).is_err());
-        assert_eq!(check_hms((6,42,43), Some(PM)), Ok((18,42,43)));
+        assert_eq!(check_hms((6, 42, 43), Some(PM)), Ok((18, 42, 43)));
+    }
+
+    #[test]
+    fn test_next_weekday() {
+        let now = Utc.datetime_from_str("2020-07-12T12:45:00", "%Y-%m-%dT%H:%M:%S").unwrap(); // sunday
+        let expected = Utc.datetime_from_str("2020-07-17T00:00:00", "%Y-%m-%dT%H:%M:%S").unwrap();
+        assert_eq!(evaluate(TimeClue::RelativeDayAt(Modifier::Next, Weekday::Fri, None, None),now).unwrap(), expected);
     }
 }
