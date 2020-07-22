@@ -11,10 +11,10 @@ This lib uses [pest](https://github.com/pest-parser/pest) for parsing.
 
 ```rust
 use chrono::{Utc, TimeZone};
-use htp::parse_and_interpret;
+use htp::parse;
 let now = Utc.datetime_from_str("2020-12-24T23:45:00", "%Y-%m-%dT%H:%M:%S").unwrap();
 let expected = Utc.datetime_from_str("2020-12-18T19:43:00", "%Y-%m-%dT%H:%M:%S").unwrap();
-let datetime = parse_and_interpret("last friday at 19:43", now).unwrap();
+let datetime = parse("last friday at 19:43", now).unwrap();
 assert_eq!(datetime, expected);
 ```
 
