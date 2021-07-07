@@ -66,6 +66,13 @@ pub fn evaluate<Tz: chrono::TimeZone>(
             Quantifier::Weeks => Ok(now - Duration::weeks(n as i64)),
             Quantifier::Months => Ok(now - Duration::days(30 * n as i64)), // assume 1 month = 30 days
         },
+        TimeClue::RelativeFuture(n, quantifier) => match quantifier {
+            Quantifier::Min => Ok(now + Duration::minutes(n as i64)),
+            Quantifier::Hours => Ok(now + Duration::hours(n as i64)),
+            Quantifier::Days => Ok(now + Duration::days(n as i64)),
+            Quantifier::Weeks => Ok(now + Duration::weeks(n as i64)),
+            Quantifier::Months => Ok(now + Duration::days(30 * n as i64)), // assume 1 month = 30 days
+        },
         TimeClue::RelativeDayAt(modifier, weekday, hms_maybe, am_or_pm_maybe) => {
             let (h, m, s) = hms_maybe.unwrap_or((0, 0, 0));
             let (h, m, s) = check_hms((h, m, s), am_or_pm_maybe)?;
