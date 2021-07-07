@@ -122,6 +122,7 @@ pub enum TimeClue {
     Time(HMS, Option<AMPM>),
     Relative(usize, Quantifier),
     RelativeDayAt(Modifier, Weekday, Option<HMS>, Option<AMPM>),
+    RelativeFuture(usize, Quantifier),
     SameWeekDayAt(Weekday, Option<HMS>, Option<AMPM>),
     ShortcutDayAt(ShortcutDay, Option<HMS>, Option<AMPM>),
     ISO(YMD, HMS),
@@ -181,6 +182,12 @@ fn parse_time_clue(pairs: &[Pair<Rule>]) -> Result<TimeClue, ParseError> {
             let n: usize = s.parse()?;
             let q = quantifier_from(q)?;
             Ok(TimeClue::Relative(n, q))
+        }
+        [(Rule::time_clue, _), (Rule::relative_future, _), (Rule::int, s), (Rule::quantifier, q), (Rule::EOI, _)] =>
+        {
+            let n: usize = s.parse()?;
+            let q = quantifier_from(q)?;
+            Ok(TimeClue::RelativeFuture(n, q))
         }
         [(Rule::time_clue, _), (Rule::day_at, _), (Rule::mday, _), mday @ .., (Rule::EOI, _)] => {
             match mday {
@@ -294,6 +301,28 @@ mod test {
         for s in vec!["2 d ago", "2 day ago", "2 days ago"].iter() {
             assert_eq!(
                 TimeClue::Relative(2, Quantifier::Days),
+                parse_time_clue_from_str(s).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn test_parse_relative_future_ok() {
+        for s in vec!["in 2 min", "in 2min", "in2min", "in  2   min"].iter() {
+            assert_eq!(
+                TimeClue::RelativeFuture(2, Quantifier::Min),
+                parse_time_clue_from_str(s).unwrap()
+            );
+        }
+        for s in vec!["in 2 h", "in 2 hour", "in 2 hours"].iter() {
+            assert_eq!(
+                TimeClue::RelativeFuture(2, Quantifier::Hours),
+                parse_time_clue_from_str(s).unwrap()
+            );
+        }
+        for s in vec!["in 2 d", "in 2 day", "in 2 days"].iter() {
+            assert_eq!(
+                TimeClue::RelativeFuture(2, Quantifier::Days),
                 parse_time_clue_from_str(s).unwrap()
             );
         }
