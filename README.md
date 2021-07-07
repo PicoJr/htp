@@ -34,7 +34,7 @@ see [time_clue grammar rule](src/time.pest).
 
 some examples:
 
-* `4 min ago`, `4 h ago`, `1 week ago`
+* `4 min ago`, `4 h ago`, `1 week ago`, `in 2 hours`, `in 1 month`
 * `last friday at 19`, `monday at 6 am`
 * `7`, `7am`, `7pm`, `7:30`, `19:43:00`
 * `now`, `yesterday`, `today`, `friday`

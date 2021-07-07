@@ -1,6 +1,6 @@
 [package]
 name = "htp"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["PicoJr <picojr_dev@gmx.com>"]
 edition = "2018"
 repository = "https://github.com/PicoJr/htp"
