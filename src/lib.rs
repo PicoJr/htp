@@ -17,6 +17,7 @@ extern crate pest;
 extern crate pest_derive;
 
 use chrono::DateTime;
+use interpreter::Cfg;
 use thiserror::Error;
 
 pub mod interpreter;
@@ -32,6 +33,19 @@ pub enum HTPError {
 
 pub fn parse<Tz: chrono::TimeZone>(s: &str, now: DateTime<Tz>) -> Result<DateTime<Tz>, HTPError> {
     let time_clue = parser::parse_time_clue_from_str(s)?;
-    let datetime = interpreter::evaluate(time_clue, now)?;
+    let cfg = Cfg {
+        now,
+        future_if_past: false,
+    };
+    let datetime = interpreter::evaluate(time_clue, &cfg)?;
+    Ok(datetime)
+}
+
+pub fn parse_with_cfg<Tz: chrono::TimeZone>(
+    s: &str,
+    cfg: &Cfg<Tz>,
+) -> Result<DateTime<Tz>, HTPError> {
+    let time_clue = parser::parse_time_clue_from_str(s)?;
+    let datetime = interpreter::evaluate(time_clue, cfg)?;
     Ok(datetime)
 }
