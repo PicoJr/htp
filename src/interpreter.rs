@@ -24,32 +24,6 @@ pub enum EvaluationError {
     },
 }
 
-/// Configure the interpreter
-pub struct Cfg<Tz: TimeZone> {
-    /// Set the reference time
-    pub now: DateTime<Tz>,
-    /// If a parse gives a date before `now`, go to next day (used for time format like "8:00")
-    pub future_if_past: bool,
-}
-
-impl<Tz: TimeZone> Cfg<Tz> {
-    /// Create a configuration object
-    pub fn new(now: DateTime<Tz>) -> Self {
-        Cfg {
-            now,
-            future_if_past: false,
-        }
-    }
-
-    /// Set if the interpreter jump to the next day if ever the parsed date is before `now`
-    pub fn set_future_if_past(self, future_if_past: bool) -> Self {
-        Cfg {
-            now: self.now,
-            future_if_past,
-        }
-    }
-}
-
 fn check_hms(hms: HMS, am_or_pm_maybe: Option<AMPM>) -> Result<HMS, EvaluationError> {
     let (h, m, s) = hms;
     let h_am_pm = match am_or_pm_maybe {
@@ -77,15 +51,22 @@ fn check_hms(hms: HMS, am_or_pm_maybe: Option<AMPM>) -> Result<HMS, EvaluationEr
 
 pub fn evaluate<Tz: chrono::TimeZone>(
     time_clue: TimeClue,
-    cfg: &Cfg<Tz>,
+    now: DateTime<Tz>,
 ) -> Result<DateTime<Tz>, EvaluationError> {
-    let now = cfg.now.clone();
+    evaluate_time_clue(time_clue, now, false)
+}
+
+pub fn evaluate_time_clue<Tz: chrono::TimeZone>(
+    time_clue: TimeClue,
+    now: DateTime<Tz>,
+    assume_next_day: bool, // assume next day if only time is supplied and time < now
+) -> Result<DateTime<Tz>, EvaluationError> {
     match time_clue {
         TimeClue::Now => Ok(now),
         TimeClue::Time((h, m, s), am_or_pm_maybe) => {
             let (h, m, s) = check_hms((h, m, s), am_or_pm_maybe)?;
             let d = now.date().and_hms(h, m, s);
-            if cfg.future_if_past && d < now {
+            if assume_next_day && d < now {
                 Ok(d + Duration::days(1))
             } else {
                 Ok(d)
@@ -163,7 +144,7 @@ pub fn evaluate<Tz: chrono::TimeZone>(
 
 #[cfg(test)]
 mod test {
-    use crate::interpreter::{check_hms, evaluate, Cfg};
+    use crate::interpreter::{check_hms, evaluate, evaluate_time_clue};
     use crate::parser::AMPM::{AM, PM};
     use crate::parser::{Modifier, TimeClue};
     use chrono::offset::TimeZone;
@@ -189,11 +170,10 @@ mod test {
         let expected = Utc
             .datetime_from_str("2020-07-17T00:00:00", "%Y-%m-%dT%H:%M:%S")
             .unwrap();
-        let cfg = Cfg::new(now);
         assert_eq!(
             evaluate(
                 TimeClue::RelativeDayAt(Modifier::Next, Weekday::Fri, None, None),
-                &cfg
+                now
             )
             .unwrap(),
             expected
@@ -201,26 +181,24 @@ mod test {
     }
 
     #[test]
-    fn test_future_if_past() {
+    fn test_assume_next_day() {
         let now = Utc
             .datetime_from_str("2020-07-12T12:45:00", "%Y-%m-%dT%H:%M:%S")
             .unwrap(); // sunday
 
-        let cfg = Cfg::new(now);
         let expected = Utc
             .datetime_from_str("2020-07-12T08:00:00", "%Y-%m-%dT%H:%M:%S")
             .unwrap();
         assert_eq!(
-            evaluate(TimeClue::Time((8, 0, 0), None), &cfg).unwrap(),
+            evaluate_time_clue(TimeClue::Time((8, 0, 0), None), now.clone(), false).unwrap(),
             expected
         );
 
         let expected = Utc
             .datetime_from_str("2020-07-13T08:00:00", "%Y-%m-%dT%H:%M:%S")
             .unwrap();
-        let cfg = Cfg::new(now).set_future_if_past(true);
         assert_eq!(
-            evaluate(TimeClue::Time((8, 0, 0), None), &cfg).unwrap(),
+            evaluate_time_clue(TimeClue::Time((8, 0, 0), None), now, true).unwrap(),
             expected
         );
     }
