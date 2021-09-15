@@ -243,6 +243,13 @@ fn parse_time_clue(pairs: &[Pair<Rule>]) -> Result<TimeClue, ParseError> {
                 _ => Err(ParseError::UnexpectedNonMatchingPattern),
             }
         }
+        [(Rule::time_clue, _), (Rule::date, _), (Rule::day, d), (Rule::month, m), (Rule::year, y), (Rule::EOI, _)] =>
+        {
+            let y: i32 = y.parse()?;
+            let m: u32 = m.parse()?;
+            let d: u32 = d.parse()?;
+            Ok(TimeClue::ISO((y, m, d), (0, 0, 0)))
+        }
         _ => Err(ParseError::UnexpectedNonMatchingPattern),
     }
 }
@@ -417,6 +424,16 @@ mod test {
         assert_eq!(
             TimeClue::ISO((2020, 12, 25), (19, 43, 42)),
             parse_time_clue_from_str("2020-12-25T19:43:42").unwrap()
+        );
+
+        assert_eq!(
+            TimeClue::ISO((2020, 12, 25), (0, 0, 0)),
+            parse_time_clue_from_str("25/12/2020").unwrap()
+        );
+
+        assert_eq!(
+            TimeClue::ISO((2020, 12, 25), (0, 0, 0)),
+            parse_time_clue_from_str("25-12-2020").unwrap()
         );
     }
 }
