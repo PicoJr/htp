@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 * Add `tomorrow` ([#2](https://github.com/PicoJr/htp/pull/2) by [@geobert](https://github.com/Geobert))
-* Add `parse_time_clue` and `evaluate_time_clue` ([#3](https://github.com/PicoJr/htp/pull/3) by [@geobert](https://github.com/PicoJr/htp/pull/3))
+* Add `parse_time_clue` and `evaluate_time_clue` ([#3](https://github.com/PicoJr/htp/pull/3) by [@geobert](https://github.com/Geobert))
+* Add support for `/`-separated dates such as `2020/25/12` ([#4](https://github.com/PicoJr/htp/pull/4) by [@geobert](https://github.com/Geobert))
 
 ## [0.3.0](https://crates.io/crates/htp/0.3.0) Jul 7, 2021
 
