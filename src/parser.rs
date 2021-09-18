@@ -120,13 +120,21 @@ fn quantifier_from(s: &str) -> Result<Quantifier, ParseError> {
 
 #[derive(Debug, PartialEq)]
 pub enum TimeClue {
+    /// Now.
     Now,
+    /// Time without date: "19:43:42", "18", "8", "7pm", "3am"
     Time(HMS, Option<AMPM>),
+    /// Relative (past) time clue: "4 minutes ago"
     Relative(usize, Quantifier),
+    /// last/next `<day>` at `<time>`: "last friday at 12"
     RelativeDayAt(Modifier, Weekday, Option<HMS>, Option<AMPM>),
+    /// Relative (future) time clue: "in 4 minutes"
     RelativeFuture(usize, Quantifier),
+    /// Same week day at `<time>`: "monday at 4"
     SameWeekDayAt(Weekday, Option<HMS>, Option<AMPM>),
+    /// `<shortcut_day>` at `<time>`: "yesterday at 4", "tomorrow"
     ShortcutDayAt(ShortcutDay, Option<HMS>, Option<AMPM>),
+    /// YYYY-MM-DDThh:mm:ss or YYYY/MM/DDThh:mm:ss: "2020-12-25T19:43:00"
     ISO(YMD, HMS),
 }
 
@@ -249,6 +257,10 @@ fn parse_time_clue(pairs: &[Pair<Rule>]) -> Result<TimeClue, ParseError> {
     }
 }
 
+/// Parse time clue from `s`. Prefer `htp::parse`.
+///
+/// This function is provided in case you wish to interpret time clues
+/// yourself. Prefer `htp::parse`.
 pub fn parse_time_clue_from_str(s: &str) -> Result<TimeClue, ParseError> {
     let pairs: Pairs<Rule> = TimeParser::parse(Rule::time_clue, s)?;
     let pairs: Vec<Pair<Rule>> = pairs.flatten().collect();

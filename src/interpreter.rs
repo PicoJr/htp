@@ -49,6 +49,7 @@ fn check_hms(hms: HMS, am_or_pm_maybe: Option<AMPM>) -> Result<HMS, EvaluationEr
     }
 }
 
+/// Same as `evaluate(time_clue, now)`
 pub fn evaluate<Tz: chrono::TimeZone>(
     time_clue: TimeClue,
     now: DateTime<Tz>,
@@ -56,6 +57,12 @@ pub fn evaluate<Tz: chrono::TimeZone>(
     evaluate_time_clue(time_clue, now, false)
 }
 
+/// Evaluate `time_clue` given reference time `now`.
+///
+/// `assume_next_day`:
+/// * if true: times without a day will be interpreted as times during the following the day.
+/// e.g. 19:43 will be interpreted as tomorrow at 19:43 if current time is > 19:43.
+/// * if false: times without a day will be interpreted as times during current day.
 pub fn evaluate_time_clue<Tz: chrono::TimeZone>(
     time_clue: TimeClue,
     now: DateTime<Tz>,

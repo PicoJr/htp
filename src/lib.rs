@@ -30,10 +30,19 @@ pub enum HTPError {
     EvaluationError(#[from] interpreter::EvaluationError),
 }
 
+/// Same as `parse_time_clue(s, now, false)`
+///
+/// Parse time clue from `s` given reference time `now` in timezone `Tz`.
 pub fn parse<Tz: chrono::TimeZone>(s: &str, now: DateTime<Tz>) -> Result<DateTime<Tz>, HTPError> {
     parse_time_clue(s, now, false)
 }
 
+/// Parse time clue from `s` given reference time `now` in timezone `Tz`.
+///
+/// `assume_next_day`:
+/// * if true: times without a day will be interpreted as times during the following the day.
+/// e.g. 19:43 will be interpreted as tomorrow at 19:43 if current time is > 19:43.
+/// * if false: times without a day will be interpreted as times during current day.
 pub fn parse_time_clue<Tz: chrono::TimeZone>(
     s: &str,
     now: DateTime<Tz>,
