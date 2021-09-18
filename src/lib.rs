@@ -31,7 +31,15 @@ pub enum HTPError {
 }
 
 pub fn parse<Tz: chrono::TimeZone>(s: &str, now: DateTime<Tz>) -> Result<DateTime<Tz>, HTPError> {
+    parse_time_clue(s, now, false)
+}
+
+pub fn parse_time_clue<Tz: chrono::TimeZone>(
+    s: &str,
+    now: DateTime<Tz>,
+    assume_next_day: bool,
+) -> Result<DateTime<Tz>, HTPError> {
     let time_clue = parser::parse_time_clue_from_str(s)?;
-    let datetime = interpreter::evaluate(time_clue, now)?;
+    let datetime = interpreter::evaluate_time_clue(time_clue, now, assume_next_day)?;
     Ok(datetime)
 }

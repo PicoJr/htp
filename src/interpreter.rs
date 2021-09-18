@@ -53,11 +53,24 @@ pub fn evaluate<Tz: chrono::TimeZone>(
     time_clue: TimeClue,
     now: DateTime<Tz>,
 ) -> Result<DateTime<Tz>, EvaluationError> {
+    evaluate_time_clue(time_clue, now, false)
+}
+
+pub fn evaluate_time_clue<Tz: chrono::TimeZone>(
+    time_clue: TimeClue,
+    now: DateTime<Tz>,
+    assume_next_day: bool, // assume next day if only time is supplied and time < now
+) -> Result<DateTime<Tz>, EvaluationError> {
     match time_clue {
         TimeClue::Now => Ok(now),
         TimeClue::Time((h, m, s), am_or_pm_maybe) => {
             let (h, m, s) = check_hms((h, m, s), am_or_pm_maybe)?;
-            Ok(now.date().and_hms(h, m, s))
+            let d = now.date().and_hms(h, m, s);
+            if assume_next_day && d < now {
+                Ok(d + Duration::days(1))
+            } else {
+                Ok(d)
+            }
         }
         TimeClue::Relative(n, quantifier) => match quantifier {
             Quantifier::Min => Ok(now - Duration::minutes(n as i64)),
@@ -132,7 +145,7 @@ pub fn evaluate<Tz: chrono::TimeZone>(
 
 #[cfg(test)]
 mod test {
-    use crate::interpreter::{check_hms, evaluate};
+    use crate::interpreter::{check_hms, evaluate, evaluate_time_clue};
     use crate::parser::AMPM::{AM, PM};
     use crate::parser::{Modifier, TimeClue};
     use chrono::offset::TimeZone;
@@ -164,6 +177,29 @@ mod test {
                 now
             )
             .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn test_assume_next_day() {
+        let now = Utc
+            .datetime_from_str("2020-07-12T12:45:00", "%Y-%m-%dT%H:%M:%S")
+            .unwrap(); // sunday
+
+        let expected = Utc
+            .datetime_from_str("2020-07-12T08:00:00", "%Y-%m-%dT%H:%M:%S")
+            .unwrap();
+        assert_eq!(
+            evaluate_time_clue(TimeClue::Time((8, 0, 0), None), now.clone(), false).unwrap(),
+            expected
+        );
+
+        let expected = Utc
+            .datetime_from_str("2020-07-13T08:00:00", "%Y-%m-%dT%H:%M:%S")
+            .unwrap();
+        assert_eq!(
+            evaluate_time_clue(TimeClue::Time((8, 0, 0), None), now, true).unwrap(),
             expected
         );
     }
