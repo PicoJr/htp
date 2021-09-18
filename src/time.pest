@@ -3,7 +3,7 @@ now = { "now" }
 am_or_pm = { "am" | "pm"}
 modifier = { "last" | "next" }
 quantifier = { "min" | "hours" | "hour" | "h" | "days" | "day" | "d" | "weeks" | "week" | "w" | "months" | "month" }
-shortcut_day = { "today" | "yesterday" }
+shortcut_day = { "today" | "yesterday" | "tomorrow" }
 mday = ${ (modifier)? ~ WHITE_SPACE* ~ weekday | shortcut_day }
 
 relative = ${ int ~ WHITE_SPACE* ~ quantifier ~ WHITE_SPACE* ~ "ago"}

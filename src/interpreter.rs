@@ -110,6 +110,7 @@ pub fn evaluate<Tz: chrono::TimeZone>(
             match rday {
                 ShortcutDay::Today => Ok(now.date().and_hms(h, m, s)),
                 ShortcutDay::Yesterday => Ok((now.date() - Duration::days(1)).and_hms(h, m, s)),
+                ShortcutDay::Tomorrow => Ok((now.date() + Duration::days(1)).and_hms(h, m, s)),
             }
         }
         TimeClue::ISO((year, month, day), (h, m, s)) => {
@@ -131,12 +132,12 @@ pub fn evaluate<Tz: chrono::TimeZone>(
 
 #[cfg(test)]
 mod test {
-    use crate::interpreter::{check_hms,evaluate};
+    use crate::interpreter::{check_hms, evaluate};
     use crate::parser::AMPM::{AM, PM};
-    use crate::parser::{TimeClue, Modifier};
-    use chrono::Weekday;
-    use chrono::Utc;
+    use crate::parser::{Modifier, TimeClue};
     use chrono::offset::TimeZone;
+    use chrono::Utc;
+    use chrono::Weekday;
 
     #[test]
     fn test_check_hms() {
@@ -151,8 +152,19 @@ mod test {
 
     #[test]
     fn test_next_weekday() {
-        let now = Utc.datetime_from_str("2020-07-12T12:45:00", "%Y-%m-%dT%H:%M:%S").unwrap(); // sunday
-        let expected = Utc.datetime_from_str("2020-07-17T00:00:00", "%Y-%m-%dT%H:%M:%S").unwrap();
-        assert_eq!(evaluate(TimeClue::RelativeDayAt(Modifier::Next, Weekday::Fri, None, None),now).unwrap(), expected);
+        let now = Utc
+            .datetime_from_str("2020-07-12T12:45:00", "%Y-%m-%dT%H:%M:%S")
+            .unwrap(); // sunday
+        let expected = Utc
+            .datetime_from_str("2020-07-17T00:00:00", "%Y-%m-%dT%H:%M:%S")
+            .unwrap();
+        assert_eq!(
+            evaluate(
+                TimeClue::RelativeDayAt(Modifier::Next, Weekday::Fri, None, None),
+                now
+            )
+            .unwrap(),
+            expected
+        );
     }
 }

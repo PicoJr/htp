@@ -72,12 +72,14 @@ fn am_or_pm_from(s: &str) -> Result<AMPM, ParseError> {
 pub enum ShortcutDay {
     Today,
     Yesterday,
+    Tomorrow,
 }
 
 fn shortcut_day_from(s: &str) -> Result<ShortcutDay, ParseError> {
     match s {
         "today" => Ok(ShortcutDay::Today),
         "yesterday" => Ok(ShortcutDay::Yesterday),
+        "tomorrow" => Ok(ShortcutDay::Tomorrow),
         _ => Err(ParseError::UnknownShortcutDay(s.to_string())),
     }
 }
@@ -349,6 +351,10 @@ mod test {
         assert_eq!(
             TimeClue::ShortcutDayAt(ShortcutDay::Yesterday, Some((19, 43, 0)), None),
             parse_time_clue_from_str("yesterday at 19:43:00").unwrap()
+        );
+        assert_eq!(
+            TimeClue::ShortcutDayAt(ShortcutDay::Tomorrow, Some((19, 43, 0)), None),
+            parse_time_clue_from_str("tomorrow at 19:43:00").unwrap()
         );
     }
 
