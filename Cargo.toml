@@ -1,6 +1,6 @@
 [package]
 name = "htp"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["PicoJr <picojr_dev@gmx.com>"]
 edition = "2018"
 repository = "https://github.com/PicoJr/htp"
@@ -19,5 +19,5 @@ thiserror = "1.0.20"
 chrono = "0.4.12"
 
 # https://github.com/rust-lang/rust/issues/88791
-[http://package.metadata.docs.rs]
+[package.metadata.docs.rs]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples=examples"]
