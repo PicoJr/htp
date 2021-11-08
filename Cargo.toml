@@ -17,3 +17,7 @@ pest = "2.0"
 pest_derive = "2.0"
 thiserror = "1.0.20"
 chrono = "0.4.12"
+
+# https://github.com/rust-lang/rust/issues/88791
+[http://package.metadata.docs.rs]
+cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples=examples"]
