@@ -1,6 +1,6 @@
 [package]
 name = "htp"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["PicoJr <picojr_dev@gmx.com>"]
 edition = "2018"
 repository = "https://github.com/PicoJr/htp"
@@ -8,7 +8,7 @@ description = "human time parser"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["human", "time", "parser", "chrono"]
-include = ["src/**/*", "LICENSE", "README.md", "CHANGELOG.md"]
+include = ["src/**/*", "LICENSE", "README.md", "CHANGELOG.md", "examples"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
