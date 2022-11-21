@@ -1,9 +1,13 @@
+#[cfg(feature = "chrono")]
 use chrono::Weekday;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
+use pest_derive::Parser;
 use std::fmt;
 use std::fmt::Formatter;
 use thiserror::Error;
+#[cfg(feature = "time")]
+use time::Weekday;
 
 #[derive(Parser)]
 #[grammar = "time.pest"]
@@ -32,6 +36,7 @@ pub enum ParseError {
     UnknownAMPM(String),
 }
 
+#[cfg(feature = "chrono")]
 fn weekday_from(s: &str) -> Result<Weekday, ParseError> {
     match s {
         "monday" | "mon" => Ok(Weekday::Mon),
@@ -41,6 +46,20 @@ fn weekday_from(s: &str) -> Result<Weekday, ParseError> {
         "friday" | "fri" => Ok(Weekday::Fri),
         "saturday" | "sat" => Ok(Weekday::Sat),
         "sunday" | "sun" => Ok(Weekday::Sun),
+        _ => Err(ParseError::UnknownWeekday(s.to_string())),
+    }
+}
+
+#[cfg(feature = "time")]
+fn weekday_from(s: &str) -> Result<Weekday, ParseError> {
+    match s {
+        "monday" | "mon" => Ok(Weekday::Monday),
+        "tuesday" | "tue" => Ok(Weekday::Tuesday),
+        "wednesday" | "wed" => Ok(Weekday::Wednesday),
+        "thursday" | "thu" => Ok(Weekday::Thursday),
+        "friday" | "fri" => Ok(Weekday::Friday),
+        "saturday" | "sat" => Ok(Weekday::Saturday),
+        "sunday" | "sun" => Ok(Weekday::Sunday),
         _ => Err(ParseError::UnknownWeekday(s.to_string())),
     }
 }
@@ -279,7 +298,10 @@ mod test {
     use crate::parser::{
         parse_time_clue_from_str, Modifier, Quantifier, ShortcutDay, TimeClue, AMPM,
     };
+    #[cfg(feature = "chrono")]
     use chrono::Weekday;
+    #[cfg(feature = "time")]
+    use time::Weekday;
 
     #[test]
     fn test_parse_time_ok() {
@@ -378,6 +400,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "chrono")]
     fn test_parse_relative_day_ok() {
         assert_eq!(TimeClue::Now, parse_time_clue_from_str("now").unwrap());
         assert_eq!(
@@ -395,6 +418,25 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "time")]
+    fn test_parse_relative_day_ok() {
+        assert_eq!(TimeClue::Now, parse_time_clue_from_str("now").unwrap());
+        assert_eq!(
+            TimeClue::SameWeekDayAt(Weekday::Friday, Some((19, 43, 0)), None),
+            parse_time_clue_from_str("friday at 19:43").unwrap()
+        );
+        assert_eq!(
+            TimeClue::RelativeDayAt(Modifier::Last, Weekday::Friday, None, None),
+            parse_time_clue_from_str("last friday").unwrap()
+        );
+        assert_eq!(
+            TimeClue::RelativeDayAt(Modifier::Last, Weekday::Friday, Some((9, 0, 0)), None),
+            parse_time_clue_from_str("last friday at 9").unwrap()
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "chrono")]
     fn test_parse_same_week_ok() {
         let weekdays = vec![
             (Weekday::Mon, "monday"),
@@ -428,6 +470,45 @@ mod test {
         }
         assert_eq!(
             TimeClue::SameWeekDayAt(Weekday::Fri, Some((19, 43, 0)), None),
+            parse_time_clue_from_str("friday at 19:43").unwrap()
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "time")]
+    fn test_parse_same_week_ok() {
+        let weekdays = vec![
+            (Weekday::Monday, "monday"),
+            (Weekday::Tuesday, "tuesday"),
+            (Weekday::Wednesday, "wednesday"),
+            (Weekday::Thursday, "thursday"),
+            (Weekday::Friday, "friday"),
+            (Weekday::Saturday, "saturday"),
+            (Weekday::Sunday, "sunday"),
+        ];
+        for (weekday, weekday_str) in weekdays.iter() {
+            assert_eq!(
+                TimeClue::SameWeekDayAt(*weekday, None, None),
+                parse_time_clue_from_str(weekday_str).unwrap()
+            )
+        }
+        let weekdays = vec![
+            (Weekday::Monday, "mon"),
+            (Weekday::Tuesday, "tue"),
+            (Weekday::Wednesday, "wed"),
+            (Weekday::Thursday, "thu"),
+            (Weekday::Friday, "fri"),
+            (Weekday::Saturday, "sat"),
+            (Weekday::Sunday, "sun"),
+        ];
+        for (weekday, weekday_str) in weekdays.iter() {
+            assert_eq!(
+                TimeClue::SameWeekDayAt(*weekday, None, None),
+                parse_time_clue_from_str(weekday_str).unwrap()
+            )
+        }
+        assert_eq!(
+            TimeClue::SameWeekDayAt(Weekday::Friday, Some((19, 43, 0)), None),
             parse_time_clue_from_str("friday at 19:43").unwrap()
         );
     }

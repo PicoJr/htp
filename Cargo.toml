@@ -16,8 +16,18 @@ include = ["src/**/*", "LICENSE", "README.md", "CHANGELOG.md", "examples"]
 pest = "2.0"
 pest_derive = "2.0"
 thiserror = "1.0.20"
-chrono = "0.4.12"
+chrono = { version = "0.4.12", optional = true }
+time = { version = "0.3.17", optional = true, features = ["parsing", "macros"] }
 
 # https://github.com/rust-lang/rust/issues/88791
 [package.metadata.docs.rs]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples=examples"]
+
+[features]
+default = ["chrono"]
+chrono = ["dep:chrono"]
+time = ["dep:time"]
+
+[[example]]
+name = "time_parser"
+path = "examples/time_parser.rs"

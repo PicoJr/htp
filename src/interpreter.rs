@@ -1,6 +1,9 @@
 use crate::parser::{Modifier, Quantifier, ShortcutDay, TimeClue, AMPM, HMS};
+#[cfg(feature = "chrono")]
 use chrono::{DateTime, Datelike, Duration, LocalResult, TimeZone, Utc};
 use thiserror::Error;
+#[cfg(feature = "time")]
+use time::{macros::format_description, Duration, OffsetDateTime};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum EvaluationError {
@@ -50,10 +53,19 @@ fn check_hms(hms: HMS, am_or_pm_maybe: Option<AMPM>) -> Result<HMS, EvaluationEr
 }
 
 /// Same as `evaluate(time_clue, now)`
+#[cfg(feature = "chrono")]
 pub fn evaluate<Tz: chrono::TimeZone>(
     time_clue: TimeClue,
     now: DateTime<Tz>,
 ) -> Result<DateTime<Tz>, EvaluationError> {
+    evaluate_time_clue(time_clue, now, false)
+}
+
+#[cfg(feature = "time")]
+pub fn evaluate(
+    time_clue: TimeClue,
+    now: OffsetDateTime,
+) -> Result<OffsetDateTime, EvaluationError> {
     evaluate_time_clue(time_clue, now, false)
 }
 
@@ -63,6 +75,7 @@ pub fn evaluate<Tz: chrono::TimeZone>(
 /// * if true: times without a day will be interpreted as times during the following the day.
 /// e.g. 19:43 will be interpreted as tomorrow at 19:43 if current time is > 19:43.
 /// * if false: times without a day will be interpreted as times during current day.
+#[cfg(feature = "chrono")]
 pub fn evaluate_time_clue<Tz: chrono::TimeZone>(
     time_clue: TimeClue,
     now: DateTime<Tz>,
@@ -150,14 +163,177 @@ pub fn evaluate_time_clue<Tz: chrono::TimeZone>(
     }
 }
 
+#[cfg(feature = "time")]
+pub fn evaluate_time_clue(
+    time_clue: TimeClue,
+    now: OffsetDateTime,
+    assume_next_day: bool, // assume next day if only time is supplied and time < now
+) -> Result<OffsetDateTime, EvaluationError> {
+    match time_clue {
+        TimeClue::Now => Ok(now),
+        TimeClue::Time((h, m, s), am_or_pm_maybe) => {
+            let (h, m, s) = check_hms((h, m, s), am_or_pm_maybe)?;
+            let d = now
+                .date()
+                .with_hms(h as u8, m as u8, s as u8)
+                .map_err(|_| EvaluationError::InvalidTime {
+                    hour: h,
+                    minute: m,
+                    second: s,
+                })?
+                .assume_offset(now.offset());
+            if assume_next_day && d < now {
+                Ok(d + Duration::days(1))
+            } else {
+                Ok(d)
+            }
+        }
+        TimeClue::Relative(n, quantifier) => match quantifier {
+            Quantifier::Min => Ok(now - Duration::minutes(n as i64)),
+            Quantifier::Hours => Ok(now - Duration::hours(n as i64)),
+            Quantifier::Days => Ok(now - Duration::days(n as i64)),
+            Quantifier::Weeks => Ok(now - Duration::weeks(n as i64)),
+            Quantifier::Months => Ok(now - Duration::days(30 * n as i64)), // assume 1 month = 30 days
+        },
+        TimeClue::RelativeFuture(n, quantifier) => match quantifier {
+            Quantifier::Min => Ok(now + Duration::minutes(n as i64)),
+            Quantifier::Hours => Ok(now + Duration::hours(n as i64)),
+            Quantifier::Days => Ok(now + Duration::days(n as i64)),
+            Quantifier::Weeks => Ok(now + Duration::weeks(n as i64)),
+            Quantifier::Months => Ok(now + Duration::days(30 * n as i64)), // assume 1 month = 30 days
+        },
+        TimeClue::RelativeDayAt(modifier, weekday, hms_maybe, am_or_pm_maybe) => {
+            let (h, m, s) = hms_maybe.unwrap_or((0, 0, 0));
+            let (h, m, s) = check_hms((h, m, s), am_or_pm_maybe)?;
+            let monday =
+                now.date() - Duration::days(now.weekday().number_days_from_monday() as i64);
+            match modifier {
+                Modifier::Last => {
+                    let same_week_day =
+                        monday + (Duration::days(weekday.number_days_from_monday() as i64));
+                    if weekday.number_days_from_monday() < now.weekday().number_days_from_monday() {
+                        Ok(same_week_day
+                            .with_hms(h as u8, m as u8, s as u8)
+                            .map_err(|_| EvaluationError::InvalidTime {
+                                hour: h,
+                                minute: m,
+                                second: s,
+                            })?
+                            .assume_offset(now.offset())) // same week
+                    } else {
+                        Ok(same_week_day
+                            .with_hms(h as u8, m as u8, s as u8)
+                            .map_err(|_| EvaluationError::InvalidTime {
+                                hour: h,
+                                minute: m,
+                                second: s,
+                            })?
+                            .assume_offset(now.offset())
+                            - Duration::days(7)) // last week
+                    }
+                }
+                Modifier::Next => {
+                    let same_week_day =
+                        monday + (Duration::days(weekday.number_days_from_monday() as i64));
+                    if weekday.number_days_from_monday() > now.weekday().number_days_from_monday() {
+                        Ok(same_week_day
+                            .with_hms(h as u8, m as u8, s as u8)
+                            .map_err(|_| EvaluationError::InvalidTime {
+                                hour: h,
+                                minute: m,
+                                second: s,
+                            })?
+                            .assume_offset(now.offset())) // same week
+                    } else {
+                        Ok(same_week_day
+                            .with_hms(h as u8, m as u8, s as u8)
+                            .map_err(|_| EvaluationError::InvalidTime {
+                                hour: h,
+                                minute: m,
+                                second: s,
+                            })?
+                            .assume_offset(now.offset())
+                            + Duration::days(7)) // next week
+                    }
+                }
+            }
+        }
+        TimeClue::SameWeekDayAt(weekday, hms_maybe, am_or_pm_maybe) => {
+            let (h, m, s) = hms_maybe.unwrap_or((0, 0, 0));
+            let (h, m, s) = check_hms((h, m, s), am_or_pm_maybe)?;
+            let monday =
+                now.date() - Duration::days(now.weekday().number_days_from_monday() as i64);
+            Ok(
+                (monday + Duration::days(weekday.number_days_from_monday() as i64))
+                    .with_hms(h as u8, m as u8, s as u8)
+                    .map_err(|_| EvaluationError::InvalidTime {
+                        hour: h,
+                        minute: m,
+                        second: s,
+                    })?
+                    .assume_offset(now.offset()),
+            )
+        }
+        TimeClue::ShortcutDayAt(rday, hms_maybe, am_or_pm_maybe) => {
+            let (h, m, s) = hms_maybe.unwrap_or((0, 0, 0));
+            let (h, m, s) = check_hms((h, m, s), am_or_pm_maybe)?;
+            match rday {
+                ShortcutDay::Today => Ok(now
+                    .date()
+                    .with_hms(h as u8, m as u8, s as u8)
+                    .map_err(|_| EvaluationError::InvalidTime {
+                        hour: h,
+                        minute: m,
+                        second: s,
+                    })?
+                    .assume_offset(now.offset())),
+                ShortcutDay::Yesterday => Ok((now.date() - Duration::days(1))
+                    .with_hms(h as u8, m as u8, s as u8)
+                    .map_err(|_| EvaluationError::InvalidTime {
+                        hour: h,
+                        minute: m,
+                        second: s,
+                    })?
+                    .assume_offset(now.offset())),
+                ShortcutDay::Tomorrow => Ok((now.date() + Duration::days(1))
+                    .with_hms(h as u8, m as u8, s as u8)
+                    .map_err(|_| EvaluationError::InvalidTime {
+                        hour: h,
+                        minute: m,
+                        second: s,
+                    })?
+                    .assume_offset(now.offset())),
+            }
+        }
+        TimeClue::ISO((year, month, day), (h, m, s)) => {
+            let fmt = format_description!("YYYY-mm-dd HH:MM:SS");
+            let utc = OffsetDateTime::parse(
+                &format!("{year:>04}-{month:>02}-{day:>02} {h:>02}:{m:>02}:{s:>02}"),
+                fmt,
+            )
+            .map_err(|_| EvaluationError::ChronoISOError {
+                year,
+                month,
+                day,
+                hour: h,
+                minute: m,
+                second: s,
+            })?;
+
+            Ok(utc.replace_offset(now.offset()))
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::interpreter::{check_hms, evaluate, evaluate_time_clue};
     use crate::parser::AMPM::{AM, PM};
     use crate::parser::{Modifier, TimeClue};
-    use chrono::offset::TimeZone;
-    use chrono::Utc;
-    use chrono::Weekday;
+    #[cfg(feature = "chrono")]
+    use chrono::{offset::TimeZone, Utc, Weekday};
+    #[cfg(feature = "time")]
+    use time::{macros::format_description, PrimitiveDateTime, Weekday};
 
     #[test]
     fn test_check_hms() {
@@ -171,6 +347,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "chrono")]
     fn test_next_weekday() {
         let now = Utc
             .datetime_from_str("2020-07-12T12:45:00", "%Y-%m-%dT%H:%M:%S")
@@ -189,6 +366,33 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "time")]
+    fn test_next_weekday() {
+        let now = PrimitiveDateTime::parse(
+            "2020-07-12T12:45:00Z",
+            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z"),
+        )
+        .expect("failed to parse origin date")
+        .assume_utc(); // sunday
+        let expected = PrimitiveDateTime::parse(
+            "2020-07-17T00:00:00Z",
+            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z"),
+        )
+        .expect("failed to parse expected date")
+        .assume_utc();
+
+        assert_eq!(
+            evaluate(
+                TimeClue::RelativeDayAt(Modifier::Next, Weekday::Friday, None, None),
+                now
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "chrono")]
     fn test_assume_next_day() {
         let now = Utc
             .datetime_from_str("2020-07-12T12:45:00", "%Y-%m-%dT%H:%M:%S")
@@ -205,6 +409,41 @@ mod test {
         let expected = Utc
             .datetime_from_str("2020-07-13T08:00:00", "%Y-%m-%dT%H:%M:%S")
             .unwrap();
+        assert_eq!(
+            evaluate_time_clue(TimeClue::Time((8, 0, 0), None), now, true).unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "time")]
+    fn test_assume_next_day() {
+        let now = PrimitiveDateTime::parse(
+            "2020-07-12T12:45:00",
+            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]"),
+        )
+        .expect("failed to parse test date")
+        .assume_utc(); // sunday
+
+        let expected = PrimitiveDateTime::parse(
+            "2020-07-12T08:00:00",
+            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]"),
+        )
+        .expect("failed to parse expected date")
+        .assume_utc();
+
+        assert_eq!(
+            evaluate_time_clue(TimeClue::Time((8, 0, 0), None), now, false).unwrap(),
+            expected
+        );
+
+        let expected = PrimitiveDateTime::parse(
+            "2020-07-13T08:00:00",
+            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]"),
+        )
+        .expect("failed to parse expected date")
+        .assume_utc();
+
         assert_eq!(
             evaluate_time_clue(TimeClue::Time((8, 0, 0), None), now, true).unwrap(),
             expected
