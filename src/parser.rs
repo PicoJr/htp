@@ -420,7 +420,8 @@ mod test {
     }
 
     #[test]
-    fn test_parse_relative_day_ok() {
+    #[cfg(feature = "time")]
+    fn time_test_parse_relative_day_ok() {
         assert_eq!(TimeClue::Now, parse_time_clue_from_str("now").unwrap());
         assert_eq!(
             TimeClue::SameWeekDayAt(TimeWeekday::Friday.into(), Some((19, 43, 0)), None),
@@ -442,6 +443,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "chrono")]
     fn chrono_test_parse_same_week_ok() {
         let weekdays = vec![
             (ChronoWeekday::Mon, "monday"),
@@ -480,6 +482,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "time")]
     fn time_test_parse_same_week_ok() {
         let weekdays = vec![
             (TimeWeekday::Monday, "monday"),
