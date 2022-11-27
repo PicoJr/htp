@@ -2,7 +2,7 @@
 name = "htp"
 version = "0.4.2"
 authors = ["PicoJr <picojr_dev@gmx.com>"]
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/PicoJr/htp"
 description = "human time parser"
 license = "MIT OR Apache-2.0"
@@ -13,11 +13,21 @@ include = ["src/**/*", "LICENSE", "README.md", "CHANGELOG.md", "examples"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pest = "2.0"
-pest_derive = "2.0"
-thiserror = "1.0.20"
-chrono = "0.4.12"
+pest = "2.4"
+pest_derive = "2.4"
+thiserror = "1.0.37"
+chrono = { version = "0.4.23", optional = true }
+time = { version = "0.3.17", optional = true, features = ["parsing", "macros"] }
 
 # https://github.com/rust-lang/rust/issues/88791
 [package.metadata.docs.rs]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples=examples"]
+
+[features]
+default = ["chrono", "time"]
+chrono = ["dep:chrono"]
+time = ["dep:time"]
+
+[[example]]
+name = "time_parser"
+path = "examples/time_parser.rs"
