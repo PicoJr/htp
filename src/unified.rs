@@ -11,6 +11,7 @@ use chrono::{Datelike, TimeZone, Timelike};
 use time::UtcOffset;
 
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub enum DateTime {
     #[cfg(feature = "time")]
     Time(time::OffsetDateTime),
